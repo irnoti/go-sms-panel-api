@@ -1,0 +1,23 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test ./...
+      - run: gh release create "$GITHUB_REF_NAME" --generate-notes
+        env: { GH_TOKEN: '${{ github.token }}' }
+      # pkg.go.dev / the Go module proxy pick the tag up on first request; warm it:
+      - run: GOPROXY=https://proxy.golang.org GO111MODULE=on go list -m "github.com/irnoti/go-sms-panel-api@${GITHUB_REF_NAME}"

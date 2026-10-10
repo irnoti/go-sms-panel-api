@@ -1,6 +1,3 @@
-// Package irnoti is the official Go SDK for the irnoti platform API.
-//
-// Money values are integer Rial amounts encoded as strings; never parse them into floats.
 package irnoti
 
 import (

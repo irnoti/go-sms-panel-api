@@ -1,5 +1,7 @@
 # irnoti (Go)
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/irnoti/go-sms-panel-api.svg)](https://pkg.go.dev/github.com/irnoti/go-sms-panel-api) [![tests](https://github.com/irnoti/go-sms-panel-api/actions/workflows/tests.yml/badge.svg)](https://github.com/irnoti/go-sms-panel-api/actions/workflows/tests.yml) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+
 Go SDK for the irnoti API — standard library only.
 
 ```bash
