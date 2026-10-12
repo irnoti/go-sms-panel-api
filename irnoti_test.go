@@ -64,6 +64,25 @@ func TestQueryAndPatternParams(t *testing.T) {
 	}
 }
 
+func TestBrokerRoutesAndBodies(t *testing.T) {
+	c, calls := server(t, 200, `{}`)
+	ctx := context.Background()
+	c.Broker.Request(ctx, "7", "sendMessage", Object{"chat_id": 1, "text": "hi"})
+	c.Broker.Updates(ctx, "7", UpdatesParams{Limit: 10, AllowedUpdates: []string{"message"}})
+	c.Broker.SetWebhook(ctx, "7", WebhookParams{URL: "https://example.com/hook", SecretToken: "s"})
+	c.Broker.DeleteWebhook(ctx, "7", true)
+	c.Broker.ReplaceToken(ctx, "7", "123456:ABCDEF-token")
+	want := [][2]string{{"POST", "/v1/broker/bots/7/request"}, {"POST", "/v1/broker/bots/7/updates"}, {"PUT", "/v1/broker/bots/7/webhook"}, {"DELETE", "/v1/broker/bots/7/webhook"}, {"PUT", "/v1/broker/bots/7/token"}}
+	for i, w := range want {
+		if (*calls)[i].method != w[0] || (*calls)[i].uri != w[1] {
+			t.Fatalf("call %d: %+v want %v", i, (*calls)[i], w)
+		}
+	}
+	if string((*calls)[0].body) != `{"method":"sendMessage","params":{"chat_id":1,"text":"hi"}}` || string((*calls)[1].body) != `{"limit":10,"allowedUpdates":["message"]}` || string((*calls)[3].body) != `{"dropPendingUpdates":true}` {
+		t.Fatalf("bodies: %s | %s | %s", (*calls)[0].body, (*calls)[1].body, (*calls)[3].body)
+	}
+}
+
 func TestErrors(t *testing.T) {
 	c, _ := server(t, 400, `{"statusCode":400,"code":"invalid_recipients","details":["0912"]}`)
 	_, err := c.SMS.Send(context.Background(), SendParams{LineID: "1", Text: "x", To: []string{"0912"}})

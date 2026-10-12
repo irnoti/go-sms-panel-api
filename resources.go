@@ -465,6 +465,100 @@ func (b *Bots) ShopStats(ctx context.Context, botID string) (Object, error) {
 	return out, err
 }
 
+// Broker is the Telegram broker: register a bot token, get a private relay link, call the
+// Bot API and pull updates through it. Scopes: broker.read, broker.write, broker.request.
+type Broker struct{ c *Client }
+
+// UpdatesParams are the optional getUpdates knobs (zero values are omitted).
+type UpdatesParams struct {
+	Offset         int      `json:"offset,omitempty"`
+	Limit          int      `json:"limit,omitempty"`
+	Timeout        int      `json:"timeout,omitempty"`
+	AllowedUpdates []string `json:"allowedUpdates,omitempty"`
+}
+
+// WebhookParams configures the return hook the relay POSTs updates to.
+type WebhookParams struct {
+	URL                string   `json:"url"`
+	SecretToken        string   `json:"secretToken,omitempty"`
+	AllowedUpdates     []string `json:"allowedUpdates,omitempty"`
+	DropPendingUpdates bool     `json:"dropPendingUpdates,omitempty"`
+}
+
+func (b *Broker) List(ctx context.Context) ([]Object, error) {
+	var out []Object
+	err := b.c.do(ctx, http.MethodGet, "/broker/bots", reqOpts{}, &out)
+	return out, err
+}
+func (b *Broker) Get(ctx context.Context, id string) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodGet, "/broker/bots/"+esc(id), reqOpts{}, &out)
+	return out, err
+}
+
+// Create registers a token (account owner only). The token is never returned again; the result carries the relay `link`.
+func (b *Broker) Create(ctx context.Context, label, token string) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodPost, "/broker/bots", reqOpts{body: Object{"label": label, "token": token}}, &out)
+	return out, err
+}
+func (b *Broker) Rename(ctx context.Context, id, label string) error {
+	return b.c.do(ctx, http.MethodPatch, "/broker/bots/"+esc(id), reqOpts{body: Object{"label": label}}, nil)
+}
+
+// ReplaceToken swaps in a regenerated BotFather token and clears the return webhook.
+func (b *Broker) ReplaceToken(ctx context.Context, id, token string) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodPut, "/broker/bots/"+esc(id)+"/token", reqOpts{body: Object{"token": token}}, &out)
+	return out, err
+}
+
+// Rotate issues a new relay link; the previous one stops working.
+func (b *Broker) Rotate(ctx context.Context, id string) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodPost, "/broker/bots/"+esc(id)+"/rotate", reqOpts{}, &out)
+	return out, err
+}
+func (b *Broker) Delete(ctx context.Context, id string) error {
+	return b.c.do(ctx, http.MethodDelete, "/broker/bots/"+esc(id), reqOpts{}, nil)
+}
+
+// Request calls any Telegram Bot API method; the result is `{status, response}`.
+func (b *Broker) Request(ctx context.Context, id, method string, params Object) (Object, error) {
+	if params == nil {
+		params = Object{}
+	}
+	var out Object
+	err := b.c.do(ctx, http.MethodPost, "/broker/bots/"+esc(id)+"/request", reqOpts{body: Object{"method": method, "params": params}}, &out)
+	return out, err
+}
+
+// Updates pulls updates (long-poll Timeout <= 25 s).
+func (b *Broker) Updates(ctx context.Context, id string, p UpdatesParams) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodPost, "/broker/bots/"+esc(id)+"/updates", reqOpts{body: p}, &out)
+	return out, err
+}
+func (b *Broker) Webhook(ctx context.Context, id string) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodGet, "/broker/bots/"+esc(id)+"/webhook", reqOpts{}, &out)
+	return out, err
+}
+func (b *Broker) SetWebhook(ctx context.Context, id string, p WebhookParams) (Object, error) {
+	var out Object
+	err := b.c.do(ctx, http.MethodPut, "/broker/bots/"+esc(id)+"/webhook", reqOpts{body: p}, &out)
+	return out, err
+}
+func (b *Broker) DeleteWebhook(ctx context.Context, id string, dropPendingUpdates bool) (Object, error) {
+	body := Object{}
+	if dropPendingUpdates {
+		body["dropPendingUpdates"] = true
+	}
+	var out Object
+	err := b.c.do(ctx, http.MethodDelete, "/broker/bots/"+esc(id)+"/webhook", reqOpts{body: body}, &out)
+	return out, err
+}
+
 type Voip struct{ c *Client }
 
 func (v *Voip) Calls(ctx context.Context) ([]Object, error) {
