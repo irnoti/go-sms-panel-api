@@ -36,6 +36,7 @@ type Client struct {
 	NumberBanks *NumberBanks
 	Verify      *Verify
 	Bots        *Bots
+	Broker      *Broker
 	Voip        *Voip
 }
 
@@ -65,6 +66,7 @@ func New(apiKey string, opts ...Option) *Client {
 	c.NumberBanks = &NumberBanks{c}
 	c.Verify = &Verify{c}
 	c.Bots = &Bots{c}
+	c.Broker = &Broker{c}
 	c.Voip = &Voip{c}
 	return c
 }
