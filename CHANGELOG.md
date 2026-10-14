@@ -2,6 +2,11 @@
 
 All notable changes to this package are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-14
+
+### Changed
+- `LineID` is now optional (`SMS.Send`, `SMS.Quote`, number banks; link tracker takes a free-form body). When empty it is not sent and the server chooses the sender line. Passing it still works exactly as before.
+
 ## [1.1.0] - 2026-10-12
 
 ### Added

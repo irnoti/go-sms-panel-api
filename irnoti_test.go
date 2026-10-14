@@ -141,3 +141,15 @@ func TestWebhook(t *testing.T) {
 		t.Fatal("bad signature accepted")
 	}
 }
+
+func TestSendOmitsLineIDWhenEmpty(t *testing.T) {
+	c, calls := server(t, 201, `{"batchId":"1","count":1,"totalPrice":"980","replayed":false}`)
+	if _, err := c.SMS.Send(context.Background(), SendParams{Text: "hi", To: []string{"0912"}}); err != nil {
+		t.Fatal(err)
+	}
+	var body map[string]any
+	_ = json.Unmarshal((*calls)[0].body, &body)
+	if _, ok := body["lineId"]; ok {
+		t.Fatalf("lineId must be omitted, got %v", body)
+	}
+}
