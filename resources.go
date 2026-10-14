@@ -73,7 +73,8 @@ type Gradual struct {
 	IntervalMinutes int `json:"intervalMinutes"`
 }
 
-// SendParams for SMS.Send / SMS.Quote. LineID "sandbox" with an irn_test_ key sends nothing.
+// SendParams for SMS.Send / SMS.Quote. LineID is optional: leave it empty to omit it and let the server pick
+// the sender line. LineID "sandbox" with an irn_test_ key sends nothing.
 type SendParams struct {
 	LineID         string
 	Text           string
@@ -89,19 +90,19 @@ type SMS struct{ c *Client }
 // Send requires scope sms.send.
 func (s *SMS) Send(ctx context.Context, p SendParams) (*BatchResult, error) {
 	var out BatchResult
-	err := s.c.do(ctx, http.MethodPost, "/sms/send", reqOpts{headers: idemHeader(p.IdempotencyKey), body: Object{
-		"lineId": p.LineID, "to": nilIfEmpty(p.To), "groupIds": nilIfEmpty(p.GroupIDs), "text": p.Text,
+	err := s.c.do(ctx, http.MethodPost, "/sms/send", reqOpts{headers: idemHeader(p.IdempotencyKey), body: withLine(p.LineID, Object{
+		"to": nilIfEmpty(p.To), "groupIds": nilIfEmpty(p.GroupIDs), "text": p.Text,
 		"scheduledAt": p.ScheduledAt, "gradual": p.Gradual,
-	}}, &out)
+	})}, &out)
 	return &out, err
 }
 
 // Quote requires scope sms.read and charges nothing.
 func (s *SMS) Quote(ctx context.Context, p SendParams) (*Quote, error) {
 	var out Quote
-	err := s.c.do(ctx, http.MethodPost, "/sms/quote", reqOpts{body: Object{
-		"lineId": p.LineID, "to": nilIfEmpty(p.To), "groupIds": nilIfEmpty(p.GroupIDs), "text": p.Text,
-	}}, &out)
+	err := s.c.do(ctx, http.MethodPost, "/sms/quote", reqOpts{body: withLine(p.LineID, Object{
+		"to": nilIfEmpty(p.To), "groupIds": nilIfEmpty(p.GroupIDs), "text": p.Text,
+	})}, &out)
 	return &out, err
 }
 
@@ -120,6 +121,14 @@ func (s *SMS) SOS(ctx context.Context, to []string, text, idempotencyKey string)
 	var out BatchResult
 	err := s.c.do(ctx, http.MethodPost, "/sms/sos", reqOpts{headers: idemHeader(idempotencyKey), body: Object{"to": to, "text": text}}, &out)
 	return &out, err
+}
+
+// withLine adds lineId to the body only when it is set, so it is omitted (not sent as null) otherwise.
+func withLine(lineID string, o Object) Object {
+	if lineID != "" {
+		o["lineId"] = lineID
+	}
+	return o
 }
 
 func nilIfEmpty(v []string) any {
@@ -302,7 +311,7 @@ func (s *Services) Cancel(ctx context.Context, product, id string) (Object, erro
 
 type LinkTracker struct{ c *Client }
 
-// Send body: lineId, text, url, to?, groupIds?, variants?, holdoutPercent?, decideAfterMinutes?.
+// Send body: lineId (optional), text, url, to?, groupIds?, variants?, holdoutPercent?, decideAfterMinutes?.
 func (l *LinkTracker) Send(ctx context.Context, body Object) (Object, error) {
 	var out Object
 	err := l.c.do(ctx, http.MethodPost, "/link-tracker/send", reqOpts{body: body}, &out)
@@ -331,7 +340,7 @@ func (l *LinkTracker) Campaign(ctx context.Context, batchID string) (Object, err
 
 type NumberBanks struct{ c *Client }
 
-// BankSend: filters may contain operator, province, city, tag.
+// BankSend: LineID is optional. Filters may contain operator, province, city, tag.
 type BankSend struct {
 	BankID, LineID, Text string
 	Count                int
@@ -344,7 +353,7 @@ func (b BankSend) body() Object {
 	if f == nil {
 		f = map[string]string{}
 	}
-	return Object{"bankId": b.BankID, "count": b.Count, "lineId": b.LineID, "text": b.Text, "filters": f}
+	return withLine(b.LineID, Object{"bankId": b.BankID, "count": b.Count, "text": b.Text, "filters": f})
 }
 func (n *NumberBanks) List(ctx context.Context) ([]Object, error) {
 	var out []Object
